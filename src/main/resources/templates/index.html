@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>个人记账本</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
+    <style>
+        .container { margin-top: 20px; }
+        .stat-card { padding: 20px; text-align: center; border-radius: 5px; margin-bottom: 20px; }
+        .income { background-color: #dff0d8; color: #3c763d; }
+        .expense { background-color: #f2dede; color: #a94442; }
+        .balance { background-color: #d9edf7; color: #31708f; }
+        .table th, .table td { text-align: center; vertical-align: middle; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-default">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="/">个人记账本</a>
+            </div>
+            <div class="navbar-form navbar-right">
+                <div class="form-group">
+                    <label>选择月份：</label>
+                    <input type="month" id="monthSelect" class="form-control" th:value="${month}">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="changeMonth()">查询</button>
+                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addModal">添加记录</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 统计卡片 -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card income">
+                <h3>本月收入</h3>
+                <h2>¥ <span th:text="${totalIncome}">0.00</span></h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card expense">
+                <h3>本月支出</h3>
+                <h2>¥ <span th:text="${totalExpense}">0.00</span></h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card balance">
+                <h3>本月结余</h3>
+                <h2>¥ <span th:text="${balance}">0.00</span></h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类统计 -->
+    <!-- 分类统计 -->
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title">分类统计</h3>
+        </div>
+        <div class="panel-body">
+            <table class="table table-bordered">
+                <thead>
+                <tr>
+                    <th>分类名称</th>
+                    <th>类型</th>
+                    <th>金额</th>
+                    <th>占比</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="stat : ${categoryStats}">
+                    <td th:text="${stat.categoryName}">餐饮</td>
+                    <td th:text="${stat.categoryType == 1 ? '收入' : '支出'}">支出</td>
+                    <td>¥ <span th:text="${stat.totalAmount}">100.00</span></td>
+                    <td th:text="${stat.percentage}">50.0%</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(categoryStats)}">
+                    <td colspan="4" class="text-center">暂无统计数据</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 记录列表 -->
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title">收支记录</h3>
+        </div>
+        <div class="panel-body">
+            <table class="table table-bordered table-striped">
+                <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>类型</th>
+                    <th>分类</th>
+                    <th>金额</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="record : ${records}">
+                    <td th:text="${#temporals.format(record.recordDate, 'yyyy-MM-dd')}">2026-05-23</td>
+                    <td>
+                        <span th:if="${record.categoryType == 1}" class="text-success">收入</span>
+                        <span th:if="${record.categoryType == 2}" class="text-danger">支出</span>
+                    </td>
+                    <td th:text="${record.categoryName}">餐饮</td>
+                    <td>
+                        <span th:if="${record.categoryType == 1}" th:text="'+' + ${record.amount}">+100.00</span>
+                        <span th:if="${record.categoryType == 2}" th:text="'-' + ${record.amount}">-100.00</span>
+                    </td>
+                    <td th:text="${record.remark}">午餐</td>
+                    <td>
+                        <button class="btn btn-xs btn-primary" th:onclick="'editRecord(' + ${record.id} + ')'">修改</button>
+                        <button class="btn btn-xs btn-danger" th:onclick="'deleteRecord(' + ${record.id} + ')'">删除</button>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(records)}">
+                    <td colspan="6" class="text-center">暂无记录</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 添加记录模态框 -->
+    <div class="modal fade" id="addModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title">添加收支记录</h4>
+                </div>
+                <div class="modal-body">
+                    <form id="addForm">
+                        <div class="form-group">
+                            <label>类型</label>
+                            <select class="form-control" id="addType" onchange="changeCategory()">
+                                <option value="2">支出</option>
+                                <option value="1">收入</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <select class="form-control" name="categoryId" id="addCategory">
+                                <option th:each="cat : ${expenseCategories}" th:value="${cat.id}" th:text="${cat.name}">餐饮</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>金额</label>
+                            <input type="number" step="0.01" class="form-control" name="amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>日期</label>
+                            <input type="date" class="form-control" name="recordDate" th:value="${#dates.format(#dates.createNow(), 'yyyy-MM-dd')}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>备注</label>
+                            <textarea class="form-control" name="remark" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAdd()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改记录模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title">修改收支记录</h4>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" name="id" id="editId">
+                        <div class="form-group">
+                            <label>类型</label>
+                            <select class="form-control" id="editType" onchange="changeEditCategory()">
+                                <option value="2">支出</option>
+                                <option value="1">收入</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <select class="form-control" name="categoryId" id="editCategory">
+                                <option th:each="cat : ${expenseCategories}" th:value="${cat.id}" th:text="${cat.name}">餐饮</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>金额</label>
+                            <input type="number" step="0.01" class="form-control" name="amount" id="editAmount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>日期</label>
+                            <input type="date" class="form-control" name="recordDate" id="editDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>备注</label>
+                            <textarea class="form-control" name="remark" id="editRemark" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 切换月份
+    function changeMonth() {
+        var month = $('#monthSelect').val();
+        window.location.href = '/?month=' + month;
+    }
+
+    // 添加记录时切换分类
+    function changeCategory() {
+        var type = $('#addType').val();
+        $.ajax({
+            url: '/category/' + type,
+            type: 'GET',
+            success: function(data) {
+                $('#addCategory').empty();
+                $.each(data, function(i, cat) {
+                    $('#addCategory').append('<option value="' + cat.id + '">' + cat.name + '</option>');
+                });
+            }
+        });
+    }
+
+    // 修改记录时切换分类
+    function changeEditCategory() {
+        var type = $('#editType').val();
+        $.ajax({
+            url: '/category/' + type,
+            type: 'GET',
+            success: function(data) {
+                $('#editCategory').empty();
+                $.each(data, function(i, cat) {
+                    $('#editCategory').append('<option value="' + cat.id + '">' + cat.name + '</option>');
+                });
+            }
+        });
+    }
+
+    // 提交添加记录
+    function submitAdd() {
+        $.ajax({
+            url: '/record/add',
+            type: 'POST',
+            data: $('#addForm').serialize(),
+            success: function() {
+                alert('添加成功');
+                location.reload();
+            },
+            error: function() {
+                alert('添加失败');
+            }
+        });
+    }
+
+    // 删除记录
+    function deleteRecord(id) {
+        if(confirm('确定要删除这条记录吗？')) {
+            $.ajax({
+                url: '/record/delete/' + id,
+                type: 'GET',
+                success: function() {
+                    alert('删除成功');
+                    location.reload();
+                },
+                error: function() {
+                    alert('删除失败');
+                }
+            });
+        }
+    }
+
+    // 编辑记录
+    function editRecord(id) {
+        $.ajax({
+            url: '/record/get/' + id,
+            type: 'GET',
+            dataType: 'json',
+            success: function(record) {
+                $('#editId').val(record.id);
+                $('#editAmount').val(record.amount);
+                // 处理日期格式（后端返回的是ISO格式，需要转成yyyy-MM-dd）
+                var date = new Date(record.recordDate);
+                var formattedDate = date.toISOString().split('T')[0];
+                $('#editDate').val(formattedDate);
+                $('#editRemark').val(record.remark);
+                $('#editModal').modal('show');
+            }
+        });
+    }
+
+    // 提交修改记录
+    function submitEdit() {
+        $.ajax({
+            url: '/record/update',
+            type: 'POST',
+            data: $('#editForm').serialize(),
+            success: function() {
+                alert('修改成功');
+                location.reload();
+            },
+            error: function() {
+                alert('修改失败');
+            }
+        });
+    }
+</script>
+</body>
+</html>

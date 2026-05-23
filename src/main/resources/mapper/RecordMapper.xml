@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.accountbook.mapper.RecordMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_record (amount, category_id, record_date, remark)
+        VALUES (#{amount}, #{categoryId}, #{recordDate}, #{remark})
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM t_record WHERE id = #{id}
+    </delete>
+
+    <update id="update">
+        UPDATE t_record
+        SET amount = #{amount}, category_id = #{categoryId}, record_date = #{recordDate}, remark = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultType="Record">
+        SELECT * FROM t_record WHERE id = #{id}
+    </select>
+
+    <select id="selectByMonth" resultType="Record">
+        SELECT r.*, c.name AS categoryName, c.type AS categoryType
+        FROM t_record r
+                 LEFT JOIN t_category c ON r.category_id = c.id
+        WHERE DATE_FORMAT(r.record_date, '%Y-%m') = #{month}
+        ORDER BY r.record_date DESC, r.create_time DESC
+    </select>
+
+    <select id="selectMonthTotal" resultType="java.util.Map">
+        SELECT
+            IFNULL(SUM(CASE WHEN c.type=1 THEN r.amount ELSE 0 END), 0) AS totalIncome,
+            IFNULL(SUM(CASE WHEN c.type=2 THEN r.amount ELSE 0 END), 0) AS totalExpense
+        FROM t_record r
+                 LEFT JOIN t_category c ON r.category_id = c.id
+        WHERE DATE_FORMAT(r.record_date, '%Y-%m') = #{month}
+    </select>
+
+    <select id="selectCategoryStats" resultType="java.util.Map">
+        SELECT
+            c.name AS categoryName,
+            SUM(r.amount) AS totalAmount,
+            c.type AS categoryType
+        FROM t_record r
+                 LEFT JOIN t_category c ON r.category_id = c.id
+        WHERE DATE_FORMAT(r.record_date, '%Y-%m') = #{month}
+        GROUP BY c.id, c.name, c.type
+        ORDER BY totalAmount DESC
+    </select>
+</mapper>
